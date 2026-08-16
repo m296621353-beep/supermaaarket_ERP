@@ -1,0 +1,27 @@
+{
+  "name": "نظام السوبرماركت ونقاط البيع ERP",
+  "short_name": "نظام السوبرماركت",
+  "description": "نظام متكامل لإدارة السوبرماركت ونقاط البيع والمخازن والحسابات العامة مع دعم العمل بدون إنترنت والمزامنة السحابية",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0E7490",
+  "dir": "rtl",
+  "lang": "ar",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

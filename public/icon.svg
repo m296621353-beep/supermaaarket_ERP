@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0E7490"/>
+      <stop offset="100%" stop-color="#083344"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)" />
+  
+  <!-- Subtle Inner Border -->
+  <rect x="16" y="16" width="480" height="480" rx="100" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="6" />
+
+  <!-- Shopping Cart & Storefront Icon Structure -->
+  <g transform="translate(48, 48) scale(0.8125)">
+    <!-- Cart Basket Base -->
+    <path d="M96 128 L416 128 L376 312 L144 312 Z" fill="url(#accentGrad)" opacity="0.95" />
+    
+    <!-- Cart Wire Lines -->
+    <path d="M140 180 L380 180 M160 236 L360 236 M256 128 L256 312 M196 128 L206 312 M316 128 L306 312" 
+          stroke="#ffffff" stroke-width="12" stroke-linecap="round" opacity="0.4" />
+    
+    <!-- Cart Handle -->
+    <path d="M64 80 L108 80 L156 332 L384 332" fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Cart Wheels -->
+    <circle cx="184" cy="400" r="34" fill="#ffffff" />
+    <circle cx="184" cy="400" r="16" fill="#0E7490" />
+    <circle cx="344" cy="400" r="34" fill="#ffffff" />
+    <circle cx="344" cy="400" r="16" fill="#0E7490" />
+
+    <!-- Center POS / Barcode / Price Tag Symbol -->
+    <rect x="220" y="50" width="120" height="70" rx="14" fill="#ffffff" />
+    <path d="M242 70 L242 100 M254 70 L254 100 M262 70 L262 100 M276 70 L276 100 M288 70 L288 100 M302 70 L302 100 M318 70 L318 100" stroke="#0E7490" stroke-width="4" stroke-linecap="round" />
+  </g>
+</svg>

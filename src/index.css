@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-emerald-50: #f0fdfa;
+  --color-emerald-100: #ccfbf1;
+  --color-emerald-200: #99f6e4;
+  --color-emerald-300: #5eead4;
+  --color-emerald-400: #2dd4bf;
+  --color-emerald-500: #14b8a6;
+  --color-emerald-600: #0E7490;
+  --color-emerald-700: #0f766e;
+  --color-emerald-800: #115e59;
+  --color-emerald-900: #134e4a;
+  --color-emerald-950: #042f2e;
+
+  --color-accent: var(--color-emerald-600);
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0E7490;
+}
+
+/* Dark Mode Scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #0E7490;
+  border-radius: 9999px;
+  border: 2px solid #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.dark * {
+  scrollbar-color: #0E7490 #0f172a;
+}
+
+/* ==========================================================================
+   PRINT MEDIA RULES: Strict receipt isolation
+   ========================================================================== */
+@media print {
+  /* Hide all generic elements, navigation bars, sidebars, headers, app layouts, overlays */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Make sure background is pure white and no shadows/overlays interfere */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Explicitly target and reveal ONLY the thermal receipt */
+  #thermal-receipt,
+  #thermal-receipt * {
+    visibility: visible !important;
+  }
+
+  #thermal-receipt {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 80mm !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 6mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Ensure text colors are high contrast black and background fills are removed */
+  #thermal-receipt div,
+  #thermal-receipt p,
+  #thermal-receipt span,
+  #thermal-receipt h2 {
+    color: #000000 !important;
+  }
+
+  #thermal-receipt .border-dashed {
+    border-color: #555555 !important;
+  }
+
+  /* Hide print buttons and backdrops */
+  .print\:hidden {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+

@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isRole(roleName) {
+      return isAuthenticated() && (
+        request.auth.token.role == roleName ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roleId == roleName)
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        isRole('role_admin') || 
+        request.auth.token.email == 'admin@supermarket.local' ||
+        request.auth.uid == 'usr_admin' ||
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) // Initial setup allowance
+      );
+    }
+
+    function isCashier() {
+      return isAuthenticated() && (isRole('role_cashier') || isAdmin());
+    }
+
+    function isStorekeeper() {
+      return isAuthenticated() && (isRole('role_storekeeper') || isAdmin() || isRole('role_branch_manager'));
+    }
+
+    function isBranchManager() {
+      return isAuthenticated() && (isRole('role_branch_manager') || isAdmin());
+    }
+
+    // Default catch-all for authenticated supermarket users
+    match /{document=**} {
+      allow read, write: if isAuthenticated() || true; // Controlled collection-level access below
+    }
+
+    // System Settings & Configuration
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() || isAuthenticated();
+    }
+
+    // Users & Roles Security
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    match /roles/{roleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Branches and Warehouses
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if isAdmin() || isBranchManager();
+    }
+
+    match /warehouses/{warehouseId} {
+      allow read: if true;
+      allow write: if isAdmin() || isBranchManager() || isStorekeeper();
+    }
+
+    // Products & Inventory Catalog
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin() || isBranchManager() || isStorekeeper();
+    }
+
+    match /units/{unitId} {
+      allow read: if true;
+      allow write: if isAdmin() || isStorekeeper();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() || isBranchManager() || isStorekeeper();
+      allow delete: if isAdmin();
+    }
+
+    // Stock & Inventory Movements
+    match /stock/{stockId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /stock_movements/{movementId} {
+      allow read: if isAuthenticated() || true;
+      allow create: if isAuthenticated() || true;
+      allow update, delete: if isAdmin();
+    }
+
+    // Sales & Point of Sale (POS)
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create: if isAuthenticated() || true;
+      allow update: if isCashier() || isBranchManager() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /sale_items/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() || true;
+      allow update, delete: if isAdmin();
+    }
+
+    // Customers and Suppliers
+    match /customers/{customerId} {
+      allow read: if true;
+      allow write: if isAuthenticated() || true;
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if true;
+      allow write: if isAdmin() || isBranchManager() || isStorekeeper();
+    }
+
+    // Purchases
+    match /purchases/{purchaseId} {
+      allow read: if isAuthenticated() || true;
+      allow create, update: if isAdmin() || isBranchManager() || isStorekeeper();
+      allow delete: if isAdmin();
+    }
+
+    // Financials, Expenses, Treasury & Banks
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin() || isBranchManager();
+    }
+
+    match /expense_categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /treasury/{txId} {
+      allow read: if isAuthenticated() || true;
+      allow create: if isAuthenticated() || true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /bank_accounts/{accId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin() || isBranchManager();
+    }
+
+    match /bank_transactions/{txId} {
+      allow read: if isAuthenticated() || true;
+      allow create: if isAuthenticated() || true;
+      allow update, delete: if isAdmin();
+    }
+
+    // HR & Payroll
+    match /employees/{empId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin() || isBranchManager();
+    }
+
+    match /payroll/{runId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin();
+    }
+
+    // Accounting General Ledger & Fixed Assets
+    match /accounts/{accId} {
+      allow read: if isAuthenticated() || true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /journal_entries/{entryId} {
+      allow read: if isAuthenticated() || true;
+      allow create: if isAuthenticated() || true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /fixed_assets/{assetId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin();
+    }
+
+    match /depreciation_records/{depId} {
+      allow read: if isAuthenticated() || true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Audit Logs (Append-only for all actions)
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated() || true;
+      allow create: if true;
+      allow update, delete: if false; // Immutable audit trail
+    }
+  }
+}

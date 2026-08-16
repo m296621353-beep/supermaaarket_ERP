@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "1.0",
+  "collections": [
+    {
+      "name": "settings",
+      "description": "System and store configuration (tax rate, currency, store name)",
+      "fields": {
+        "storeName": { "type": "string" },
+        "companyName": { "type": "string" },
+        "vatRate": { "type": "number" },
+        "enableVat": { "type": "boolean" },
+        "currency": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" }
+      }
+    },
+    {
+      "name": "roles",
+      "description": "User roles and granular permissions",
+      "fields": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "permissions": { "type": "map" }
+      }
+    },
+    {
+      "name": "users",
+      "description": "System operators (Admin, Cashiers, Storekeepers)",
+      "fields": {
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "roleId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    {
+      "name": "branches",
+      "description": "Supermarket branches",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "isDefault": { "type": "boolean" }
+      }
+    },
+    {
+      "name": "warehouses",
+      "description": "Warehouses and sales floor inventories linked to branches",
+      "fields": {
+        "branchId": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "isDefault": { "type": "boolean" }
+      }
+    },
+    {
+      "name": "categories",
+      "description": "Product categories (Grocery, Dairy, Cleaning, Beverages)",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    {
+      "name": "units",
+      "description": "Measurement units (Piece, KG, Liter, Pack, Carton)",
+      "fields": {
+        "name": { "type": "string" },
+        "symbol": { "type": "string" }
+      }
+    },
+    {
+      "name": "products",
+      "description": "Inventory product master catalog",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "baseUnit": { "type": "string" },
+        "barcodes": { "type": "array" },
+        "purchasePrice": { "type": "number" },
+        "salePrice": { "type": "number" },
+        "minStock": { "type": "number" },
+        "image": { "type": "string" },
+        "active": { "type": "boolean" }
+      }
+    },
+    {
+      "name": "stock",
+      "description": "Product stock levels per warehouse",
+      "fields": {
+        "productId": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "quantity": { "type": "number" }
+      }
+    },
+    {
+      "name": "sales",
+      "description": "Point of sale (POS) invoices and transactions",
+      "fields": {
+        "invoiceNo": { "type": "string" },
+        "branchId": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "vatAmount": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "changeAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "items": { "type": "array" }
+      }
+    },
+    {
+      "name": "customers",
+      "description": "Customer accounts and credit balances",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "balance": { "type": "number" },
+        "creditLimit": { "type": "number" }
+      }
+    },
+    {
+      "name": "suppliers",
+      "description": "Supplier records and payable balances",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "balance": { "type": "number" }
+      }
+    },
+    {
+      "name": "purchases",
+      "description": "Purchase invoices from suppliers",
+      "fields": {
+        "invoiceNo": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "isPaid": { "type": "boolean" },
+        "items": { "type": "array" }
+      }
+    },
+    {
+      "name": "treasury",
+      "description": "Cash drawer and safe balance ledger",
+      "fields": {
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "source": { "type": "string" },
+        "description": { "type": "string" },
+        "branchId": { "type": "string" }
+      }
+    },
+    {
+      "name": "accounts",
+      "description": "General ledger chart of accounts",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "balance": { "type": "number" }
+      }
+    }
+  ]
+}

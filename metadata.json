@@ -1,0 +1,8 @@
+{
+  "name": "نظام سوبرماركت ونقطة بيع نهائي",
+  "description": "نظام متكامل لإدارة السوبرماركت ونقاط البيع (POS)، المخزون، الحسابات، المشتريات، والموظفين بتصميم كلاسيكي احترافي متقدم.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

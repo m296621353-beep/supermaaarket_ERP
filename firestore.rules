@@ -7,70 +7,78 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     function isRole(roleName) {
-      return isAuthenticated() && (
-        request.auth.token.role == roleName ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roleId == roleName)
-      );
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roleId == roleName;
     }
 
+    // Developer: full technical control, only role allowed to touch /system_config
+    function isDeveloper() {
+      return isRole('role_developer');
+    }
+
+    // Admin (General Manager): full business control (employees, branches,
+    // accounting) but NOT system_config. isDeveloper() is included so a
+    // developer account can also act as admin when needed.
     function isAdmin() {
-      return isAuthenticated() && (
-        isRole('role_admin') || 
-        request.auth.token.email == 'admin@supermarket.local' ||
-        request.auth.uid == 'usr_admin' ||
-        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) // Initial setup allowance
-      );
+      return isDeveloper() || isRole('role_admin');
     }
 
     function isCashier() {
-      return isAuthenticated() && (isRole('role_cashier') || isAdmin());
+      return isRole('role_cashier') || isAdmin();
     }
 
     function isStorekeeper() {
-      return isAuthenticated() && (isRole('role_storekeeper') || isAdmin() || isRole('role_branch_manager'));
+      return isRole('role_storekeeper') || isAdmin() || isRole('role_branch_manager');
     }
 
     function isBranchManager() {
-      return isAuthenticated() && (isRole('role_branch_manager') || isAdmin());
+      return isRole('role_branch_manager') || isAdmin();
     }
 
-    // Default catch-all for authenticated supermarket users
-    match /{document=**} {
-      allow read, write: if isAuthenticated() || true; // Controlled collection-level access below
+    // NOTE: no catch-all match here. Anything not explicitly listed below
+    // is denied by default (Firestore's default behavior).
+
+    // Developer-only: global app config / feature flags / branch license limit
+    match /system_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isDeveloper();
     }
 
-    // System Settings & Configuration
+    // Business Settings (store name, currency, invoice footer, etc.)
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Users & Roles Security
+    // Document id MUST equal the Firebase Auth uid of that user.
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() ||
+        (isAuthenticated() && request.auth.uid == userId &&
+         request.resource.data.roleId != 'role_admin' &&
+         request.resource.data.roleId != 'role_developer');
+      allow update: if isAdmin() ||
+        (isAuthenticated() && request.auth.uid == userId &&
+         request.resource.data.roleId == resource.data.roleId); // can't self-promote
       allow delete: if isAdmin();
     }
 
     match /roles/{roleId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isDeveloper();
     }
 
     // Branches and Warehouses
     match /branches/{branchId} {
       allow read: if true;
-      allow write: if isAdmin() || isBranchManager();
+      allow write: if isAdmin();
     }
 
     match /warehouses/{warehouseId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isBranchManager() || isStorekeeper();
     }
 
@@ -93,115 +101,114 @@ service cloud.firestore {
 
     // Stock & Inventory Movements
     match /stock/{stockId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isBranchManager() || isStorekeeper();
     }
 
     match /stock_movements/{movementId} {
-      allow read: if isAuthenticated() || true;
-      allow create: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isBranchManager() || isStorekeeper();
       allow update, delete: if isAdmin();
     }
 
     // Sales & Point of Sale (POS)
     match /sales/{saleId} {
-      allow read: if true;
-      allow create: if isAuthenticated() || true;
-      allow update: if isCashier() || isBranchManager() || isAdmin();
+      allow read: if isAuthenticated();
+      allow create, update: if isCashier() || isBranchManager() || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /sale_items/{itemId} {
-      allow read: if true;
-      allow create: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow create: if isCashier() || isBranchManager() || isAdmin();
       allow update, delete: if isAdmin();
     }
 
     // Customers and Suppliers
     match /customers/{customerId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
     match /suppliers/{supplierId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isBranchManager() || isStorekeeper();
     }
 
     // Purchases
     match /purchases/{purchaseId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow create, update: if isAdmin() || isBranchManager() || isStorekeeper();
       allow delete: if isAdmin();
     }
 
     // Financials, Expenses, Treasury & Banks
     match /expenses/{expenseId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isBranchManager();
     }
 
     match /expense_categories/{catId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     match /treasury/{txId} {
-      allow read: if isAuthenticated() || true;
-      allow create: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isBranchManager() || isCashier();
       allow update, delete: if isAdmin();
     }
 
     match /bank_accounts/{accId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isBranchManager();
     }
 
     match /bank_transactions/{txId} {
-      allow read: if isAuthenticated() || true;
-      allow create: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isBranchManager();
       allow update, delete: if isAdmin();
     }
 
     // HR & Payroll
     match /employees/{empId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isBranchManager();
     }
 
     match /payroll/{runId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // Accounting General Ledger & Fixed Assets
     match /accounts/{accId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 
     match /journal_entries/{entryId} {
-      allow read: if isAuthenticated() || true;
-      allow create: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isBranchManager();
       allow update, delete: if isAdmin();
     }
 
     match /fixed_assets/{assetId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     match /depreciation_records/{depId} {
-      allow read: if isAuthenticated() || true;
+      allow read: if isAuthenticated();
       allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 
     // Audit Logs (Append-only for all actions)
     match /audit_logs/{logId} {
-      allow read: if isAuthenticated() || true;
-      allow create: if true;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if false; // Immutable audit trail
     }
   }

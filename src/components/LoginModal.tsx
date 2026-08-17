@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Store, ShieldCheck, X } from 'lucide-react';
+import { Mail, Lock, Store, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginModalProps {
@@ -9,31 +9,32 @@ interface LoginModalProps {
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const { login } = useAuth();
-  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(usernameInput)) {
-      setError('');
+    setError('');
+    setSubmitting(true);
+    const result = await login(email, password);
+    setSubmitting(false);
+    if (result.ok) {
+      setEmail('');
+      setPassword('');
       onClose();
     } else {
-      setError('اسم المستخدم غير موجود أو الحساب غير نشط!');
+      setError(result.error || 'فشل تسجيل الدخول');
     }
-  };
-
-  const quickLogin = (uname: string) => {
-    login(uname);
-    setError('');
-    onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700 shadow-2xl relative select-none">
-        
+
         <button onClick={onClose} className="absolute top-4 left-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
           <X className="w-5 h-5" />
         </button>
@@ -43,7 +44,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             <Store className="w-6 h-6" />
           </div>
           <h2 className="font-black text-lg text-slate-900 dark:text-slate-100">تسجيل دخول المستخدم</h2>
-          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">اختر حساباً للتبديل السريع أو ادخل اسم المستخدم</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">ادخل البريد الإلكتروني وكلمة المرور الخاصة بحسابك</p>
         </div>
 
         {error && (
@@ -54,15 +55,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">اسم المستخدم</label>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+              <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
               <input
-                type="text"
+                type="email"
                 required
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                placeholder="مثال: admin أو cashier1"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@supermarket.local"
+                className="w-full pl-3 pr-9 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl font-bold font-mono text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">كلمة المرور</label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 className="w-full pl-3 pr-9 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl font-bold font-mono text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -70,37 +86,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+            disabled={submitting}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
           >
-            دخول للنظام
+            {submitting ? 'جاري الدخول...' : 'دخول للنظام'}
           </button>
         </form>
-
-        {/* Quick User Switcher Buttons */}
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-2">
-          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block text-center">تبديل سريع لحسابات العرض التجريبي:</span>
-          
-          <div className="grid grid-cols-3 gap-1.5 text-[11px] font-bold">
-            <button
-              onClick={() => quickLogin('admin')}
-              className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition text-center cursor-pointer"
-            >
-              المدير admin
-            </button>
-            <button
-              onClick={() => quickLogin('cashier1')}
-              className="p-2 bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 rounded-xl hover:bg-sky-100 dark:hover:bg-sky-900/60 transition text-center cursor-pointer"
-            >
-              كاشير cashier1
-            </button>
-            <button
-              onClick={() => quickLogin('storekeeper')}
-              className="p-2 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/60 transition text-center cursor-pointer"
-            >
-              مخزن storekeeper
-            </button>
-          </div>
-        </div>
 
       </div>
     </div>

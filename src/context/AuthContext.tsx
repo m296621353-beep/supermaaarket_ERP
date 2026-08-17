@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Role, Branch, Warehouse, RolePermissionKey } from '../types';
-import { getUsers, getRoles, getBranches, getWarehouses, addAuditLog, subscribeToDB } from '../db/dbEngine';
-import { auth, signInAnonymously, onAuthStateChanged, firebaseSignOut } from '../firebase';
+import { getUsers, getRoles, getBranches, getWarehouses, addAuditLog, subscribeToDB, saveUser } from '../db/dbEngine';
+import { auth, db, doc, getDoc, signInWithEmailAndPassword, onAuthStateChanged, firebaseSignOut } from '../firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +10,8 @@ interface AuthContextType {
   activeWarehouse: Warehouse | null;
   branches: Branch[];
   warehouses: Warehouse[];
-  login: (username: string) => boolean;
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   setActiveBranchId: (branchId: string) => void;
   setActiveWarehouseId: (warehouseId: string) => void;
@@ -25,20 +26,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [branches, setBranches] = useState<Branch[]>(getBranches());
   const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses());
 
-  // Default logged in user (admin)
-  const defaultUser = users.find(u => u.username === 'admin') || users[0] || null;
-  const [user, setUser] = useState<User | null>(defaultUser);
-  const [activeBranchId, setActiveBranchIdState] = useState<string>(defaultUser?.branchId || branches[0]?.id || '');
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [activeBranchId, setActiveBranchIdState] = useState<string>('');
   const [activeWarehouseId, setActiveWarehouseIdState] = useState<string>('');
 
-  // Firebase Auth state listener
+  // Real Firebase Auth state listener.
+  // The user's profile document in Firestore/local cache MUST be stored
+  // with its document id equal to the Firebase Auth UID (uid). This is
+  // what lets firestore.rules verify each user's real role server-side.
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        // Auto sign-in to Firebase Auth anonymously for backend Firestore operations
-        signInAnonymously(auth).catch(err => {
-          console.log('Firebase anonymous auth note:', err);
-        });
+        setUser(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        // Try local/synced copy first (fast, works offline)
+        let profile = getUsers().find(u => u.id === firebaseUser.uid) || null;
+
+        // Fall back to a direct Firestore read if not found locally yet
+        if (!profile) {
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (snap.exists()) {
+            profile = snap.data() as User;
+          }
+        }
+
+        if (profile && profile.active) {
+          setUser(profile);
+          setActiveBranchIdState(profile.branchId);
+        } else {
+          // No matching profile / inactive account -> force sign-out
+          await firebaseSignOut(auth);
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Failed to load user profile:', err);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
       }
     });
 
@@ -56,7 +85,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Sync default warehouse whenever active branch changes
     const branchWhs = warehouses.filter(w => w.branchId === activeBranchId);
     if (branchWhs.length > 0) {
       const defaultWh = branchWhs.find(w => w.isDefault) || branchWhs[0];
@@ -70,27 +98,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const activeBranch = branches.find(b => b.id === activeBranchId) || branches[0] || null;
   const activeWarehouse = warehouses.find(w => w.id === activeWarehouseId) || warehouses[0] || null;
 
-  const login = (username: string): boolean => {
-    const foundUser = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.active);
-    if (foundUser) {
-      setUser(foundUser);
-      setActiveBranchIdState(foundUser.branchId);
-      
-      // Ensure Firebase Auth session is active
-      if (!auth.currentUser) {
-        signInAnonymously(auth).catch(console.warn);
+  const login = async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+
+      let profile = getUsers().find(u => u.id === cred.user.uid) || null;
+      if (!profile) {
+        const snap = await getDoc(doc(db, 'users', cred.user.uid));
+        if (snap.exists()) profile = snap.data() as User;
       }
 
+      if (!profile || !profile.active) {
+        await firebaseSignOut(auth);
+        return { ok: false, error: 'الحساب غير مفعّل أو غير مسجل في النظام.' };
+      }
+
+      setUser(profile);
+      setActiveBranchIdState(profile.branchId);
+
       addAuditLog({
-        userId: foundUser.id,
-        userName: foundUser.name,
+        userId: profile.id,
+        userName: profile.name,
         action: 'LOGIN',
         module: 'تسجيل الدخول',
-        details: 'تم تسجيل الدخول بنجاح عبر Firebase Auth'
+        details: 'تم تسجيل الدخول بنجاح عبر Firebase Auth (Email/Password)'
       });
-      return true;
+
+      return { ok: true };
+    } catch (err: any) {
+      const code = err?.code || '';
+      let message = 'حدث خطأ أثناء تسجيل الدخول.';
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+      } else if (code === 'auth/too-many-requests') {
+        message = 'عدد محاولات كبير، حاول مرة أخرى بعد قليل.';
+      } else if (code === 'auth/invalid-email') {
+        message = 'صيغة البريد الإلكتروني غير صحيحة.';
+      }
+      return { ok: false, error: message };
     }
-    return false;
   };
 
   const logout = () => {
@@ -133,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       activeWarehouse,
       branches,
       warehouses,
+      authLoading,
       login,
       logout,
       setActiveBranchId,

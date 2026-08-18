@@ -125,9 +125,9 @@
     visibility: hidden !important;
   }
 
-  @page {
-    size: 80mm auto;
+ @page {
+    size: 80mm 297mm;
     margin: 0;
   }
-}
+  
 

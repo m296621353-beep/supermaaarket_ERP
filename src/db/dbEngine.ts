@@ -84,9 +84,24 @@ const storekeeperPermission = {
 
 export const INITIAL_ROLES: Role[] = [
   {
+    id: 'role_developer',
+    name: 'مطور النظام',
+    description: 'صلاحيات فنية كاملة + إعدادات النظام العامة والتراخيص',
+    permissions: {
+      dashboard: fullPermission,
+      pos: fullPermission,
+      inventory: fullPermission,
+      branches: fullPermission,
+      users: fullPermission,
+      settings: fullPermission,
+      ledger: fullPermission,
+      taxes: fullPermission
+    }
+  },
+  {
     id: 'role_admin',
-    name: 'مدير النظام',
-    description: 'صلاحيات كاملة لجميع شاشات ووظائف النظام',
+    name: 'مدير عام',
+    description: 'صلاحيات كاملة لإدارة الفروع والموظفين والمحاسبة (بدون إعدادات النظام الفنية)',
     permissions: {
       dashboard: fullPermission,
       pos: fullPermission,
@@ -928,6 +943,13 @@ export function initFirestore(): void {
   // Background Initial Seeding into Cloud Firestore if cloud database is fresh
   seedSettingsIfEmpty(getStorage('settings', DEFAULT_SETTINGS));
   seedCollectionIfEmpty('roles', getRoles());
+  // seedCollectionIfEmpty only writes when the collection is fully empty.
+  // Push role_developer explicitly so it appears even on an existing
+  // Firestore project that already has the other roles.
+  const developerRole = INITIAL_ROLES.find(r => r.id === 'role_developer');
+  if (developerRole) {
+    syncToFirestore('roles', developerRole);
+  }
   seedCollectionIfEmpty('branches', getBranches());
   seedCollectionIfEmpty('warehouses', getWarehouses());
   seedCollectionIfEmpty('users', getUsers());
@@ -2712,4 +2734,3 @@ export function getInventoryReport(warehouseId?: string) {
     lowStockItems
   };
 }
-

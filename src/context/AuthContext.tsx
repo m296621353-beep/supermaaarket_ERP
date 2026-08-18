@@ -31,10 +31,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeBranchId, setActiveBranchIdState] = useState<string>('');
   const [activeWarehouseId, setActiveWarehouseIdState] = useState<string>('');
 
-  // Real Firebase Auth state listener.
-  // The user's profile document in Firestore/local cache MUST be stored
-  // with its document id equal to the Firebase Auth UID (uid). This is
-  // what lets firestore.rules verify each user's real role server-side.
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
@@ -44,10 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        // Try local/synced copy first (fast, works offline)
-        let profile = getUsers().find(u => u.id === firebaseUser.uid) || null;
+        let profile = getUsers().find((u: User) => u.id === firebaseUser.uid) || null;
 
-        // Fall back to a direct Firestore read if not found locally yet
         if (!profile) {
           const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (snap.exists()) {
@@ -59,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(profile);
           setActiveBranchIdState(profile.branchId);
         } else {
-          // No matching profile / inactive account -> force sign-out
           await firebaseSignOut(auth);
           setUser(null);
         }
@@ -85,24 +78,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const branchWhs = warehouses.filter(w => w.branchId === activeBranchId);
+    const branchWhs = warehouses.filter((w: Warehouse) => w.branchId === activeBranchId);
     if (branchWhs.length > 0) {
-      const defaultWh = branchWhs.find(w => w.isDefault) || branchWhs[0];
+      const defaultWh = branchWhs.find((w: Warehouse) => w.isDefault) || branchWhs[0];
       setActiveWarehouseIdState(defaultWh.id);
     } else {
       setActiveWarehouseIdState('');
     }
   }, [activeBranchId, warehouses]);
 
-  const role = user ? roles.find(r => r.id === user.roleId) || null : null;
-  const activeBranch = branches.find(b => b.id === activeBranchId) || branches[0] || null;
-  const activeWarehouse = warehouses.find(w => w.id === activeWarehouseId) || warehouses[0] || null;
+  const role = user ? roles.find((r: Role) => r.id === user.roleId) || null : null;
+  const activeBranch = branches.find((b: Branch) => b.id === activeBranchId) || branches[0] || null;
+  const activeWarehouse = warehouses.find((w: Warehouse) => w.id === activeWarehouseId) || warehouses[0] || null;
 
   const login = async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
 
-      let profile = getUsers().find(u => u.id === cred.user.uid) || null;
+      let profile = getUsers().find((u: User) => u.id === cred.user.uid) || null;
       if (!profile) {
         const snap = await getDoc(doc(db, 'users', cred.user.uid));
         if (snap.exists()) profile = snap.data() as User;

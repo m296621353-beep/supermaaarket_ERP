@@ -1489,6 +1489,27 @@ export function removeHeldSale(id: string): void {
 
 // Complete Sale Transaction - Deducts Stock, Records Cash Treasury, Updates Customer Balance, Adds Audit Log
 export function completeSale(saleData: Omit<Sale, 'id' | 'invoiceNo' | 'createdAt'>): Sale {
+  // Validate stock availability BEFORE touching anything (no partial sales)
+  if (saleData.items && saleData.items.length > 0) {
+    const stock = getStock();
+    const products = getProducts();
+    const shortages: string[] = [];
+
+    saleData.items.forEach(item => {
+      const stockItem = stock.find(s => s.productId === item.productId && s.warehouseId === saleData.warehouseId);
+      const available = stockItem ? stockItem.quantity : 0;
+      if (item.qty > available) {
+        const product = products.find(p => p.id === item.productId);
+        const name = product?.name || item.productName || item.productId;
+        shortages.push(`${name} (المتاح: ${available}, المطلوب: ${item.qty})`);
+      }
+    });
+
+    if (shortages.length > 0) {
+      throw new Error('الرصيد غير كافٍ للأصناف التالية: ' + shortages.join('، '));
+    }
+  }
+
   const sales = getSales();
   const invoiceNum = sales.length + 1286;
   const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');

@@ -1,8 +1,8 @@
 // Service Worker for Supermarket ERP PWA
-const CACHE_NAME = 'supermarket-erp-v1';
+// v2: network-first for page navigation & JS/CSS so updates show immediately.
+// Bump CACHE_NAME on every deploy so old caches are purged automatically.
+const CACHE_NAME = 'supermarket-erp-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.svg',
@@ -32,28 +32,48 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only intercept GET requests and non-Firestore API traffic
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  
+
   // Ignore firebase / firestore network calls (managed natively by Firestore SDK offline persistence)
   if (url.hostname.includes('firestore.googleapis.com') || url.hostname.includes('firebaseio.com') || url.hostname.includes('identitytoolkit')) {
     return;
   }
 
+  const isNavigation = event.request.mode === 'navigate';
+  const isAppCode = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname === '/index.html';
+
+  // Network-first for the HTML page itself and JS/CSS bundles:
+  // always try to fetch the latest version first, fall back to cache only when offline.
+  if (isNavigation || isAppCode) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            if (isNavigation) return caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first (with background refresh) for everything else: icons, fonts, images.
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch in background to update cache (stale-while-revalidate)
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
           }
-        }).catch(() => {
-          // Offline, ignore network error
-        });
+        }).catch(() => {});
         return cachedResponse;
       }
 
@@ -62,16 +82,9 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         }
         const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         return networkResponse;
-      }).catch(() => {
-        // Return cached index.html for navigation if offline
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html') || caches.match('/');
-        }
-      });
+      }).catch(() => {});
     })
   );
 });
